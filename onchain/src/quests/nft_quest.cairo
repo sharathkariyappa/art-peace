@@ -9,6 +9,7 @@ pub mod NFTMintQuest {
         canvas_nft: ContractAddress,
         art_peace: ContractAddress,
         reward: u32,
+        claimed_username: LegacyMap<ContractAddress, bool>,
         claimed: LegacyMap<ContractAddress, bool>,
     }
 
@@ -33,9 +34,12 @@ pub mod NFTMintQuest {
         }
 
         fn is_claimable(
-            self: @ContractState, user: ContractAddress, calldata: Span<felt252>
+            self: @ContractState, user: ContractAddress, _calldata: Span<felt252>
         ) -> bool {
             if self.claimed.read(user) {
+                return false;
+            }
+            if !self.claimed_username.read(user) {
                 return false;
             }
 
@@ -52,7 +56,7 @@ pub mod NFTMintQuest {
             return true;
         }
 
-        fn claim(ref self: ContractState, user: ContractAddress, calldata: Span<felt252>) -> u32 {
+        fn claim(ref self: ContractState, user: ContractAddress, _calldata: Span<felt252>) -> u32 {
             assert(get_caller_address() == self.art_peace.read(), 'Only ArtPeace can claim quests');
 
             assert(self.is_claimable(user, calldata), 'Quest not claimable');
