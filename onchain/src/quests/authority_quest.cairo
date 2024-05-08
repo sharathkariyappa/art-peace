@@ -10,7 +10,7 @@ pub mod AuthorityQuest {
         art_peace: ContractAddress,
         authority: ContractAddress,
         reward: u32,
-        claimable: LegacyMap<ContractAddress, bool>,
+        extra_pixel_required: u32,
         claimed: LegacyMap<ContractAddress, bool>,
     }
 
@@ -19,6 +19,7 @@ pub mod AuthorityQuest {
         pub art_peace: ContractAddress,
         pub authority: ContractAddress,
         pub reward: u32,
+        pub extra_pixel_required: u32,
     }
 
     #[constructor]
@@ -26,6 +27,7 @@ pub mod AuthorityQuest {
         self.art_peace.write(init_params.art_peace);
         self.authority.write(init_params.authority);
         self.reward.write(init_params.reward);
+        self.extra_pixel_required.write(init_params.extra_pixel_required);
     }
 
     #[abi(embed_v0)]
@@ -37,11 +39,10 @@ pub mod AuthorityQuest {
         fn mark_claimable(ref self: ContractState, calldata: Span<felt252>) {
             assert(get_caller_address() == self.authority.read(), 'Only authority address allowed');
             let mut i = 0;
-            while i < calldata
-                .len() {
-                    self.claimable.write((*calldata[i]).try_into().unwrap(), true);
-                    i += 1;
-                }
+            while i < calldata.len() {
+                self.claimable.write((*calldata[i]).try_into().unwrap(), true);
+                i += 1;
+            }
         }
     }
 
@@ -58,11 +59,20 @@ pub mod AuthorityQuest {
                 return false;
             }
 
-            if self.claimable.read(user) {
-                true
-            } else {
-                false
+            let extra_pixel_count = self.fetch_extra_pixel_count(user);
+
+            if extra_pixel_count >= self.extra_pixel_required.read() {
+                return true;
             }
+            false
+        }
+
+        fn fetch_extra_pixel_count(self: @ContractState, user: ContractAddress) -> u32 {
+            let template_store = ITemplateStoreDispatcher {
+                contract_address: self.art_peace.read()
+            };
+            
+            template_store.get_extra_pixel_count(user)
         }
 
         fn claim(ref self: ContractState, user: ContractAddress, calldata: Span<felt252>) -> u32 {
