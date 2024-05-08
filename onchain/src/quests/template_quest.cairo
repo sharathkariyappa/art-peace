@@ -8,6 +8,7 @@ pub mod TemplateQuest {
     struct Storage {
         art_peace: ContractAddress,
         reward: u32,
+        extra_pixel_required: u32,
         claimed: LegacyMap<ContractAddress, bool>,
     }
 
@@ -15,12 +16,14 @@ pub mod TemplateQuest {
     pub struct TemplateQuestInitParams {
         pub art_peace: ContractAddress,
         pub reward: u32,
+        pub extra_pixel_required: u32,
     }
 
     #[constructor]
     fn constructor(ref self: ContractState, init_params: TemplateQuestInitParams) {
         self.art_peace.write(init_params.art_peace);
         self.reward.write(init_params.reward);
+        self.extra_pixel_required.write(init_params.extra_pixel_required);
     }
 
     #[abi(embed_v0)]
@@ -34,6 +37,10 @@ pub mod TemplateQuest {
         ) -> bool {
             if self.claimed.read(user) {
                 return false;
+            }
+            let extra_pixel_count = self.fetch_extra_pixel_count(user);
+             if extra_pixel_count >= self.extra_pixel_required.read() {
+                return true;
             }
 
             let template_id_felt = *calldata.at(0);
@@ -49,6 +56,13 @@ pub mod TemplateQuest {
             }
 
             return true;
+        }
+          fn fetch_extra_pixel_count(self: @ContractState, user: ContractAddress, calldata: Span<felt252>) -> u32 {
+            let template_store = ITemplateStoreDispatcher {
+                contract_address: self.art_peace.read()
+            };
+            
+            template_store.get_extra_pixel_count(user)
         }
 
         fn claim(ref self: ContractState, user: ContractAddress, calldata: Span<felt252>) -> u32 {
