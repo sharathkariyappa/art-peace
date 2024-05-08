@@ -16,6 +16,7 @@ pub mod PixelQuest {
         claim_day: u32,
         is_color: bool, // If the quest is for a specific color
         color: u8,
+        extra_pixel_required: u32, //New field to track the number of extra pixels required
     }
 
     #[derive(Drop, Serde)]
@@ -27,6 +28,7 @@ pub mod PixelQuest {
         pub claim_day: u32,
         pub is_color: bool,
         pub color: u8,
+        pub extra_pixel_required: u32,
     }
 
     #[constructor]
@@ -38,6 +40,7 @@ pub mod PixelQuest {
         self.claim_day.write(init_params.claim_day);
         self.is_color.write(init_params.is_color);
         self.color.write(init_params.color);
+        self.extra_pixel_required.write(init_params.extra_pixel_required);
     }
 
     #[abi(embed_v0)]
@@ -65,6 +68,10 @@ pub mod PixelQuest {
         fn color(self: @ContractState) -> u8 {
             return self.color.read();
         }
+
+        fn extra_pixels_required(self: @ContractState) -> u32 {
+            self.extra_pixels_required.read();
+        }
     }
 
     #[abi(embed_v0)]
@@ -74,12 +81,16 @@ pub mod PixelQuest {
         }
 
         fn is_claimable(
-            self: @ContractState, user: ContractAddress, calldata: Span<felt252>
+            self: @ContractState, user: ContractAddress, _calldata: Span<felt252>
         ) -> bool {
             let art_peace = self.art_peace.read();
             if self.claimed.read(user) {
                 return false;
             }
+
+            let extra_pixels_count = art_peace.get_user_extra_pixels(user);
+            extra_pixels_count >= self.extra_pixels_required.read();
+        
 
             // Daily Pixel Quest
             if self.is_daily.read() {
@@ -109,7 +120,7 @@ pub mod PixelQuest {
             }
         }
 
-        fn claim(ref self: ContractState, user: ContractAddress, calldata: Span<felt252>) -> u32 {
+        fn claim(ref self: ContractState, user: ContractAddress, _calldata: Span<felt252>) -> u32 {
             assert(
                 get_caller_address() == self.art_peace.read().contract_address,
                 'Only ArtPeace can claim quests'
