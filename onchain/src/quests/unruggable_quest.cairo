@@ -10,19 +10,25 @@ pub mod UnruggableQuest {
     struct Storage {
         art_peace: ContractAddress,
         reward: u32,
+        required_balance: u32,
         claimed: LegacyMap<ContractAddress, bool>,
+        coin_address: ContractAddress,
     }
 
     #[derive(Drop, Serde)]
     pub struct UnruggableQuestInitParams {
         pub art_peace: ContractAddress,
         pub reward: u32,
+        pub required_balance: u32,
+        pub coin_address: ContractAddress,
     }
 
     #[constructor]
     fn constructor(ref self: ContractState, init_params: UnruggableQuestInitParams) {
         self.art_peace.write(init_params.art_peace);
         self.reward.write(init_params.reward);
+        self.required_balance.write(init_params.required_balance);
+        self.coin_address.write(init_params.coin_address);
     }
 
     #[abi(embed_v0)]
@@ -45,24 +51,13 @@ pub mod UnruggableQuest {
                 return false;
             }
 
-            let coin_address_as_felt252: felt252 = *calldata.at(0);
-            let coin = IUnruggableMemecoinDispatcher {
-                contract_address: coin_address_as_felt252.try_into().unwrap()
-            };
+            let coin = IUnruggableMemecoinDispatcher { contract_address: self.coin_address.read() };
 
-            if coin.owner() != user {
-                return false;
-            }
-
-            if coin.is_launched() != true {
-                return false;
-            }
-
-            true
+            coin.owner() == user && coin.is_launched() && coin.balance() >= self.required_balance.read();
         }
 
         fn claim(ref self: ContractState, user: ContractAddress, calldata: Span<felt252>) -> u32 {
-            assert(get_caller_address() == self.art_peace.read(), 'Only ArtPeace can claim quests');
+            assert(get_caller_address() == self.art_peace.read().coin_address, 'Only ArtPeace can claim quests');
 
             assert(self.is_claimable(user, calldata), 'Quest not claimable');
 
