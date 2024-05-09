@@ -45,23 +45,17 @@ pub mod RainbowQuest {
 
             let art_piece = IArtPeaceDispatcher { contract_address: self.art_peace.read() };
 
-            let mut result = true;
-            let mut i = 0;
-            while i < art_piece
-                .get_color_count() {
-                    if (art_piece.get_user_pixels_placed_color(user, i) == 0) {
-                        result = false;
-                        break;
-                    }
+            for i in 0..7 { 
+                if art_piece.get_user_pixels_placed_color(user, i) == 0 {
+                    return false; 
+                }
+            }
 
-                    i += 1;
-                };
-
-            result
+            true
         }
 
         fn claim(ref self: ContractState, user: ContractAddress, calldata: Span<felt252>) -> u32 {
-            assert(get_caller_address() == self.art_peace.read(), 'Only ArtPeace can claim quests');
+            assert(get_caller_address() == self.art_peace.read().contract_address, 'Only ArtPeace can claim quests');
 
             assert(self.is_claimable(user, calldata), 'Quest not claimable');
 
